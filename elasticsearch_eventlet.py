@@ -72,7 +72,7 @@ class ElasticSearch(object):
         asr = erequests.AsyncRequest(method, url, self.session)
         if query:
             asr.prepare(data=json.dumps(query))
-        return self.map_one(asr)
+        return self.map_one(asr).json()
 
     def bulk_index(self, index, docs):
         chunks = []
@@ -95,7 +95,7 @@ class ElasticSearch(object):
         url = self.base_url + index + '/' + doc_type + '/_bulk'
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
-        return self.map_one(asr)
+        return self.map_one(asr).json()
 
     def index(self, index, doc_type, doc):
         doc['_type'] = doc_type
