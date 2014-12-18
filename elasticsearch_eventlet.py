@@ -24,7 +24,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ElasticSearch(object):
-    def __init__(self, size=10, base_url='http://127.0.0.1:9200/', lazy_indexing_threshold=1000):
+    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000):
         """Initialize an ElasticSearch client.
            Optional Params:
                size: connection pool size (default 10)
