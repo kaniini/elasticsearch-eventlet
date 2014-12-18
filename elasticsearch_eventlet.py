@@ -24,10 +24,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ElasticSearch(object):
-    def __init__(self, size=10, base_url='http://127.0.0.1:9200/'):
+    def __init__(self, size=10, base_url='http://127.0.0.1:9200/', lazy_indexing_threshold=1000):
+        """Initialize an ElasticSearch client.
+           Optional Params:
+               size: connection pool size (default 10)
+               base_url: base url for the elasticsearch worker node
+               lazy_indexing_threshold: number of index entries to lazily commit.
+                                        set to None to make commits happen in realtime."""
         self.pool = eventlet.GreenPool(size)
         self.base_url = base_url
         self.session = erequests.Session()
+
+        self.lazy_indexing_threshold = lazy_indexing_threshold
+        if self.lazy_indexing_threshold:
+            self.lazy_queues = dict()
+
         if self.base_url[-1] != '/':
             self.base_url += '/'
 
@@ -53,10 +64,13 @@ class ElasticSearch(object):
             asr.prepare(data=json.dumps(query))
         return self.map_one(asr)
 
-    def bulk_index(self, index, doc_type, docs):
+    def bulk_index(self, index, docs):
         chunks = []
         for doc in docs:
-            action = {'index': {'_index': index, '_type': doc_type}}
+            if not '_type' in doc:
+                raise ValueError('document is missing _type field.')
+
+            action = {'index': {'_index': index, '_type': doc.pop('_type')}}
 
             if doc.get(id_field) is not None:
                 action['index']['_id'] = doc[id_field]
@@ -72,3 +86,20 @@ class ElasticSearch(object):
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
         return self.map_one(asr)
+
+    def _flushqueue(self, index):
+        self.bulk_index(index, self.lazy_queues[index])
+        self.lazy_queues[index] = list()
+
+    def index(self, index, doc_type, doc):
+        if self.lazy_indexing_threshold:
+            doc['_type'] = doc_type
+            if index not in self.lazy_queues:
+                self.lazy_queues[index] = [doc]
+            else:
+                self.lazy_queues[index].append(doc)
+            if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
+                self._flushqueue(index)
+                return
+
+        return self.bulk_index(index, doc_type, [doc])
