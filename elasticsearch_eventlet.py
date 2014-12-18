@@ -146,10 +146,10 @@ class ElasticSearch(object):
         except Exception as e:
             raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
 
-    def index(self, index, doc_type, doc):
+    def index(self, index, doc_type, doc, lazy_commit_allowed=True):
         doc['_type'] = doc_type
 
-        if self.lazy_indexing_threshold:
+        if self.lazy_indexing_threshold and lazy_commit_allowed:
             if index not in self.lazy_queues:
                 self.lazy_queues[index] = [doc]
             else:
