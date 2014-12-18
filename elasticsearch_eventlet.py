@@ -17,10 +17,8 @@ import eventlet
 import erequests
 import logging
 
-logger = logging.getLogger(__name__)
-
 class ElasticSearch(object):
-    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000):
+    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None):
         """Initialize an ElasticSearch client.
            Optional Params:
                size: connection pool size (default 10)
@@ -30,6 +28,9 @@ class ElasticSearch(object):
         self.pool = eventlet.GreenPool(size)
         self.base_url = base_url
         self.session = erequests.Session()
+        self.logger = logger
+        if not self.logger:
+            self.logger = logging.getLogger(__name__)
 
         self.lazy_indexing_threshold = lazy_indexing_threshold
         if self.lazy_indexing_threshold:
@@ -80,7 +81,11 @@ class ElasticSearch(object):
         asr = erequests.AsyncRequest(method, url, self.session)
         if body:
             asr.prepare(data=json.dumps(body))
-        return self.map_one(asr).json()
+        res = self.map_one(asr)
+        try:
+            return res.json()
+        except:
+            self.logger.info('exception: ' + repr(res) + ' payload: ' + repr(res.text))
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
