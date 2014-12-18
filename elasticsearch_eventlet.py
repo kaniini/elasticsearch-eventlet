@@ -55,9 +55,19 @@ class ElasticSearch(object):
     def map_one(self, request):
         return list(self.map([request]))[0]
 
+    def _flushqueue(self, index):
+        if not self.lazy_indexing_threshold:
+            return
+        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
+            docs = self.lazy_queues[index]
+            self.lazy_queues[index] = list()
+            self.bulk_index(index, docs)
+
     def count(self, index, query=None):
         method = 'POST' if query else 'GET'
         url = self.base_url + index + '/_count'
+
+        self._flushqueue(index)
 
         asr = erequests.AsyncRequest(method, url, self.session)
         if query:
@@ -87,19 +97,15 @@ class ElasticSearch(object):
         asr.prepare(data=payload)
         return self.map_one(asr)
 
-    def _flushqueue(self, index):
-        self.bulk_index(index, self.lazy_queues[index])
-        self.lazy_queues[index] = list()
-
     def index(self, index, doc_type, doc):
+        doc['_type'] = doc_type
+
         if self.lazy_indexing_threshold:
-            doc['_type'] = doc_type
             if index not in self.lazy_queues:
                 self.lazy_queues[index] = [doc]
             else:
                 self.lazy_queues[index].append(doc)
-            if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
-                self._flushqueue(index)
-                return
+            self._flushqueue(index)
+            return
 
-        return self.bulk_index(index, doc_type, [doc])
+        return self.bulk_index(index, [doc])
