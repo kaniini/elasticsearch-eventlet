@@ -103,7 +103,12 @@ class ElasticSearch(object):
         url = self.build_url(index, None, '_count')
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
-        return self.map_one(asr).json()
+
+        r = self.map_one(asr)
+        try:
+            return r.json()
+        except:
+            pass
 
     def index(self, index, doc_type, doc):
         doc['_type'] = doc_type
