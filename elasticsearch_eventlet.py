@@ -94,7 +94,7 @@ class ElasticSearch(object):
             chunks.append(json.dumps(doc))
 
         payload = '\n'.join(chunks) + '\n'
-        url = self.base_url + index + '/' + doc_type + '/_bulk'
+        url = self.base_url + index + '/_bulk'
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
         return self.map_one(asr).json()
