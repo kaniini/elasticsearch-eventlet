@@ -95,8 +95,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url)
+        except Exception as e:
+            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
@@ -116,15 +116,15 @@ class ElasticSearch(object):
             chunks.append(json.dumps(doc))
 
         payload = '\n'.join(chunks) + '\n'
-        url = self.build_url(index, None, '_count')
+        url = self.build_url(index, None, '_bulk')
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
 
         r = self.map_one(asr)
         try:
             return r.json()
-        except:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url)
+        except Exception as e:
+            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
 
     def index(self, index, doc_type, doc):
         doc['_type'] = doc_type
