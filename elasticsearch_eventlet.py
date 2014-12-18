@@ -12,11 +12,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-try:
-    import simplejson as json
-except:
-    import json
-
+import simplejson as json
 import eventlet
 import erequests
 import logging
