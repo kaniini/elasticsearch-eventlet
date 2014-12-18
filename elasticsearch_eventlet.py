@@ -58,6 +58,8 @@ class ElasticSearch(object):
     def _flushqueue(self, index):
         if not self.lazy_indexing_threshold:
             return
+        if not index in self.lazy_queues:
+            return
         if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
             docs = self.lazy_queues[index]
             self.lazy_queues[index] = list()
