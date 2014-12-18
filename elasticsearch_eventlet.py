@@ -71,15 +71,15 @@ class ElasticSearch(object):
             uri += action
         return uri
 
-    def count(self, index, doc_type=None, query=None):
-        method = 'POST' if query else 'GET'
+    def count(self, index, doc_type=None, body=None):
+        method = 'POST' if body else 'GET'
         url = self.build_url(index, doc_type, '_count')
 
         self._flushqueue(index)
 
         asr = erequests.AsyncRequest(method, url, self.session)
-        if query:
-            asr.prepare(data=json.dumps(query))
+        if body:
+            asr.prepare(data=json.dumps(body))
         return self.map_one(asr).json()
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
