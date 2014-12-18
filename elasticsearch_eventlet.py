@@ -66,8 +66,11 @@ class ElasticSearch(object):
             return
         if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
             docs = self.lazy_queues[index]
-            self.lazy_queues[index] = list()
-            self.bulk_index(index, docs)
+            try:
+                self.bulk_index(index, docs)
+                self.lazy_queues[index] = list()
+            except Exception as e:
+                self.logger.info('lazy flush failed for index: ' + index + ' - duplicate data may exist later')
 
     def build_url(self, index=None, doc_type=None, action=None):
         uri = self.base_url
