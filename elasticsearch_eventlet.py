@@ -16,6 +16,7 @@ import simplejson as json
 import eventlet
 import erequests
 import logging
+import time
 
 class ElasticSearchError(Exception):
     def __init__(self, error):
@@ -25,7 +26,7 @@ class ElasticSearchError(Exception):
         return "<ElasticSearchException: {0}>".format(self.error)
 
 class ElasticSearch(object):
-    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None):
+    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None, get_time=None, lazy_update_period=5):
         """Initialize an ElasticSearch client.
            Optional Params:
                size: connection pool size (default 10)
@@ -46,6 +47,13 @@ class ElasticSearch(object):
         if self.base_url[-1] != '/':
             self.base_url += '/'
 
+        self.get_time = get_time
+        if not self.get_time:
+            self.get_time = lambda: int(time.time())
+
+        self.lazy_update_ts = self.get_time()
+        self.lazy_update_period = lazy_update_period
+
     def map(self, requests):
         def submit(r):
             try:
@@ -64,11 +72,12 @@ class ElasticSearch(object):
             return
         if not index in self.lazy_queues:
             return
-        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold:
+        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold or self.get_time() > (self.lazy_update_ts + self.lazy_update_period):
             docs = self.lazy_queues[index]
             try:
                 self.lazy_queues[index] = list()
                 self.bulk_index(index, docs)
+                self.lazy_update_ts = self.get_time()
             except Exception as e:
                 self.lazy_queues[index] = docs
                 self.logger.info('lazy flush failed for index: ' + index + ' - duplicate data may exist later')
