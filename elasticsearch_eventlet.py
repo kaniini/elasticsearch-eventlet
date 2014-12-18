@@ -111,7 +111,7 @@ class ElasticSearch(object):
         url = self.build_url(index, doc_type, key)
         self._flushqueue(index)
 
-        asr = erequests.AsyncRequest(method, url, self.session)
+        asr = erequests.AsyncRequest('GET', url, self.session)
         if body:
             asr.prepare(data=json.dumps(body))
         r = self.map_one(asr)
