@@ -112,8 +112,6 @@ class ElasticSearch(object):
         self._flushqueue(index)
 
         asr = erequests.AsyncRequest('GET', url, self.session)
-        if body:
-            asr.prepare(data=json.dumps(body))
         r = self.map_one(asr)
         try:
             return r.json()
