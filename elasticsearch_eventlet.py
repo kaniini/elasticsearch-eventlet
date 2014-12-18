@@ -85,7 +85,7 @@ class ElasticSearch(object):
         try:
             return res.json()
         except:
-            self.logger.info('exception: ' + repr(res) + ' payload: ' + repr(res.text))
+            self.logger.info('exception: ' + repr(res) + ' payload: ' + repr(res.text) + ' url: ' + url)
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
