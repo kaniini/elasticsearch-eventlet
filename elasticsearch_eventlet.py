@@ -65,9 +65,19 @@ class ElasticSearch(object):
             self.lazy_queues[index] = list()
             self.bulk_index(index, docs)
 
-    def count(self, index, query=None):
+    def build_url(self, index=None, doc_type=None, action=None):
+        uri = self.base_url
+        if index:
+            uri += index + '/'
+        if doc_type:
+            uri += doc_type + '/'
+        if action:
+            uri += action
+        return uri
+
+    def count(self, index, doc_type=None, query=None):
         method = 'POST' if query else 'GET'
-        url = self.base_url + index + '/_count'
+        url = self.build_url(index, doc_type, '_count')
 
         self._flushqueue(index)
 
@@ -94,7 +104,7 @@ class ElasticSearch(object):
             chunks.append(json.dumps(doc))
 
         payload = '\n'.join(chunks) + '\n'
-        url = self.base_url + index + '/_bulk'
+        url = self.build_url(index, None, '_count')
         asr = erequests.AsyncRequest('POST', url, self.session)
         asr.prepare(data=payload)
         return self.map_one(asr).json()
