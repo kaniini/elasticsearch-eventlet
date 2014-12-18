@@ -76,7 +76,7 @@ class ElasticSearch(object):
             asr.prepare(data=json.dumps(query))
         return self.map_one(asr).json()
 
-    def bulk_index(self, index, docs):
+    def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
         for doc in docs:
             if not '_type' in doc:
