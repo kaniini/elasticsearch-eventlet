@@ -17,6 +17,13 @@ import eventlet
 import erequests
 import logging
 
+class ElasticSearchError(Exception):
+    def __init__(self, error):
+        self.error = error
+
+    def __repr__(self):
+        return "<ElasticSearchException: {0}>".format(self.error)
+
 class ElasticSearch(object):
     def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None):
         """Initialize an ElasticSearch client.
@@ -81,11 +88,11 @@ class ElasticSearch(object):
         asr = erequests.AsyncRequest(method, url, self.session)
         if body:
             asr.prepare(data=json.dumps(body))
-        res = self.map_one(asr)
+        r = self.map_one(asr)
         try:
-            return res.json()
+            return r.json()
         except:
-            self.logger.info('exception: ' + repr(res) + ' payload: ' + repr(res.text) + ' url: ' + url)
+            raise ElasticSearchError('got invalid JSON response back from server: ' + url)
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
@@ -113,7 +120,7 @@ class ElasticSearch(object):
         try:
             return r.json()
         except:
-            pass
+            raise ElasticSearchError('got invalid JSON response back from server: ' + url)
 
     def index(self, index, doc_type, doc):
         doc['_type'] = doc_type
