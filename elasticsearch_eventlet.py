@@ -17,6 +17,7 @@ import eventlet
 import erequests
 import logging
 import time
+import copy
 
 class ElasticSearchError(Exception):
     def __init__(self, error):
@@ -120,7 +121,7 @@ class ElasticSearch(object):
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
-        for doc in docs:
+        for doc in copy.deepcopy(docs):
             if not '_type' in doc:
                 raise ValueError('document is missing _type field.')
 
