@@ -108,6 +108,21 @@ class ElasticSearch(object):
         except Exception as e:
             raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
 
+    def search(self, index, doc_type=None, body=None):
+        method = 'POST' if body else 'GET'
+        url = self.build_url(index, doc_type, '_search')
+
+        self._flushqueue(index)
+
+        asr = erequests.AsyncRequest(method, url, self.session)
+        if body:
+            asr.prepare(data=json.dumps(body))
+        r = self.map_one(asr)
+        try:
+            return r.json()
+        except Exception as e:
+            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+
     def get(self, index, doc_type, key):
         url = self.build_url(index, doc_type, key)
         self._flushqueue(index)
