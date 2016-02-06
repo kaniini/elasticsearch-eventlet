@@ -21,11 +21,12 @@ import copy
 
 
 class ElasticSearchError(Exception):
-    def __init__(self, error):
-        self.error = error
+    """Raised when an invalid JSON response is received from the server."""
+    def __init__(self, url):
+        self.url = url
 
     def __repr__(self):
-        return "<ElasticSearchException: {0}>".format(self.error)
+        return "<ElasticSearchException: {0}>".format(self.url)
 
 
 class ElasticSearch(object):
@@ -115,8 +116,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def search(self, index, doc_type=None, body=None):
         method = 'POST' if body else 'GET'
@@ -130,8 +131,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def get(self, index, doc_type, key):
         url = self.build_url(index, doc_type, key)
@@ -141,8 +142,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
@@ -169,8 +170,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def index(self, index, doc_type, doc, lazy_commit_allowed=True):
         doc['_type'] = doc_type
