@@ -12,28 +12,40 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import simplejson as json
-import eventlet
-import erequests
+from urllib.parse import urlencode
+
+import copy
 import logging
 import time
-import copy
+
+import erequests
+import eventlet
+import simplejson as json
+
 
 class ElasticSearchError(Exception):
-    def __init__(self, error):
-        self.error = error
+    """Raised when an invalid JSON response is received from the server."""
+    def __init__(self, url):
+        self.url = url
 
     def __repr__(self):
-        return "<ElasticSearchException: {0}>".format(self.error)
+        return "<ElasticSearchException: {0}>".format(self.url)
+
 
 class ElasticSearch(object):
-    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None, get_time=None, lazy_update_period=5):
+    def __init__(self, base_url='http://127.0.0.1:9200/', size=10,
+                 lazy_indexing_threshold=1000, logger=None, get_time=None,
+                 lazy_update_period=5):
         """Initialize an ElasticSearch client.
-           Optional Params:
-               size: connection pool size (default 10)
-               base_url: base url for the elasticsearch worker node
-               lazy_indexing_threshold: number of index entries to lazily commit.
-                                        set to None to make commits happen in realtime."""
+
+        :param size: connection pool size (default 10)
+
+        :param base_url: base url for the elasticsearch worker node
+
+        :param lazy_indexing_threshold: number of index entries to lazily
+                                        commit.  set to None to make commits
+                                        happen in realtime.
+        """
         self.pool = eventlet.GreenPool(size)
         self.base_url = base_url
         self.session = erequests.Session()
@@ -71,17 +83,19 @@ class ElasticSearch(object):
     def _flushqueue(self, index):
         if not self.lazy_indexing_threshold:
             return
-        if not index in self.lazy_queues:
+        if index not in self.lazy_queues:
             return
-        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold or self.get_time() > (self.lazy_update_ts + self.lazy_update_period):
+        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold or \
+           self.get_time() > (self.lazy_update_ts + self.lazy_update_period):
             docs = self.lazy_queues[index]
             try:
                 self.lazy_queues[index] = list()
                 self.bulk_index(index, docs)
                 self.lazy_update_ts = self.get_time()
-            except Exception as e:
+            except Exception:
                 self.lazy_queues[index] = docs
-                self.logger.info('lazy flush failed for index: ' + index + ' - duplicate data may exist later')
+                self.logger.info('lazy flush failed for index %s - duplicate '
+                                 'data may exist later', index)
 
     def build_url(self, index=None, doc_type=None, action=None):
         uri = self.base_url
@@ -105,12 +119,18 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
-    def search(self, index, doc_type=None, body=None):
+    def search(self, index, doc_type=None, body=None, params=None):
         method = 'POST' if body else 'GET'
         url = self.build_url(index, doc_type, '_search')
+
+        if params is None:
+            params = {}
+
+        if len(params) > 0:
+            url = url + '?' + urlencode(params)
 
         self._flushqueue(index)
 
@@ -120,8 +140,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def get(self, index, doc_type, key):
         url = self.build_url(index, doc_type, key)
@@ -131,13 +151,13 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
         for doc in copy.deepcopy(docs):
-            if not '_type' in doc:
+            if '_type' not in doc:
                 raise ValueError('document is missing _type field.')
 
             action = {'index': {'_index': index, '_type': doc.pop('_type')}}
@@ -159,8 +179,8 @@ class ElasticSearch(object):
         r = self.map_one(asr)
         try:
             return r.json()
-        except Exception as e:
-            raise ElasticSearchError('got invalid JSON response back from server: ' + url + ' parent exception: ' + repr(e))
+        except Exception as exc:
+            raise ElasticSearchError(url) from exc
 
     def index(self, index, doc_type, doc, lazy_commit_allowed=True):
         doc['_type'] = doc_type
