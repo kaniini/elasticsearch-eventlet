@@ -12,12 +12,15 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-import simplejson as json
-import eventlet
-import erequests
+from urllib.parse import urlencode
+
+import copy
 import logging
 import time
-import copy
+
+import erequests
+import eventlet
+import simplejson as json
 
 
 class ElasticSearchError(Exception):
@@ -89,7 +92,7 @@ class ElasticSearch(object):
                 self.lazy_queues[index] = list()
                 self.bulk_index(index, docs)
                 self.lazy_update_ts = self.get_time()
-            except Exception as e:
+            except Exception:
                 self.lazy_queues[index] = docs
                 self.logger.info('lazy flush failed for index %s - duplicate '
                                  'data may exist later', index)
@@ -119,9 +122,15 @@ class ElasticSearch(object):
         except Exception as exc:
             raise ElasticSearchError(url) from exc
 
-    def search(self, index, doc_type=None, body=None):
+    def search(self, index, doc_type=None, body=None, params=None):
         method = 'POST' if body else 'GET'
         url = self.build_url(index, doc_type, '_search')
+
+        if params is None:
+            params = {}
+
+        if len(params) > 0:
+            url = url + '?' + urlencode(params)
 
         self._flushqueue(index)
 
