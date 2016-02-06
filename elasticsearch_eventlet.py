@@ -19,6 +19,7 @@ import logging
 import time
 import copy
 
+
 class ElasticSearchError(Exception):
     def __init__(self, error):
         self.error = error
@@ -26,14 +27,21 @@ class ElasticSearchError(Exception):
     def __repr__(self):
         return "<ElasticSearchException: {0}>".format(self.error)
 
+
 class ElasticSearch(object):
-    def __init__(self, base_url='http://127.0.0.1:9200/', size=10, lazy_indexing_threshold=1000, logger=None, get_time=None, lazy_update_period=5):
+    def __init__(self, base_url='http://127.0.0.1:9200/', size=10,
+                 lazy_indexing_threshold=1000, logger=None, get_time=None,
+                 lazy_update_period=5):
         """Initialize an ElasticSearch client.
-           Optional Params:
-               size: connection pool size (default 10)
-               base_url: base url for the elasticsearch worker node
-               lazy_indexing_threshold: number of index entries to lazily commit.
-                                        set to None to make commits happen in realtime."""
+
+        :param size: connection pool size (default 10)
+
+        :param base_url: base url for the elasticsearch worker node
+
+        :param lazy_indexing_threshold: number of index entries to lazily
+                                        commit.  set to None to make commits
+                                        happen in realtime.
+        """
         self.pool = eventlet.GreenPool(size)
         self.base_url = base_url
         self.session = erequests.Session()
@@ -71,9 +79,10 @@ class ElasticSearch(object):
     def _flushqueue(self, index):
         if not self.lazy_indexing_threshold:
             return
-        if not index in self.lazy_queues:
+        if index not in self.lazy_queues:
             return
-        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold or self.get_time() > (self.lazy_update_ts + self.lazy_update_period):
+        if len(self.lazy_queues[index]) > self.lazy_indexing_threshold or \
+           self.get_time() > (self.lazy_update_ts + self.lazy_update_period):
             docs = self.lazy_queues[index]
             try:
                 self.lazy_queues[index] = list()
@@ -81,7 +90,8 @@ class ElasticSearch(object):
                 self.lazy_update_ts = self.get_time()
             except Exception as e:
                 self.lazy_queues[index] = docs
-                self.logger.info('lazy flush failed for index: ' + index + ' - duplicate data may exist later')
+                self.logger.info('lazy flush failed for index %s - duplicate '
+                                 'data may exist later', index)
 
     def build_url(self, index=None, doc_type=None, action=None):
         uri = self.base_url
@@ -137,7 +147,7 @@ class ElasticSearch(object):
     def bulk_index(self, index, docs, id_field='_id', parent_field='_parent'):
         chunks = []
         for doc in copy.deepcopy(docs):
-            if not '_type' in doc:
+            if '_type' not in doc:
                 raise ValueError('document is missing _type field.')
 
             action = {'index': {'_index': index, '_type': doc.pop('_type')}}
